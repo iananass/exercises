@@ -12,7 +12,7 @@ int main(void)
 {
     int s, t, len;
     struct sockaddr_un remote;
-    char str[100];
+    char str[128];
 
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         perror("socket");
@@ -31,15 +31,12 @@ int main(void)
 
     printf("Connected.\n");
 
-    while (printf("> "), fgets(str, 100, stdin), !feof(stdin)) {
-        if (send(s, str, strlen(str), 0) == -1) {
-            perror("send");
-            exit(1);
-        }
-
-        if ((t = recv(s, str, 100, 0)) > 0) {
+    while (printf("> ")) {
+        if ((t = recv(s, str, sizeof (str) - 1, 0)) > 0) {
             str[t] = '\0';
             printf("echo> %s", str);
+            printf("SEGFAULT\n");
+            memcpy((void*) 0, (void*) 1, 1);
         } else {
             if (t < 0) perror("recv");
             else printf("Server closed connection\n");

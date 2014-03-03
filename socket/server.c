@@ -1,15 +1,54 @@
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define SOCK_PATH "echo_socket"
 
+static int socketalive = 0;
+
+int MakeAClient();
+void sigchld_hdl(int sig);
+
+void sigchld_hdl(int sig)
+{
+    socketalive = 0;
+    MakeAClient();
+}
+
+int MakeAClient()
+{
+    int pid = fork();
+    if (pid < 0)
+        return -1;
+    if (pid == 0) {
+        char *cmd[] = {"client", (char *) 0};
+        execvp("./client", cmd);
+        fprintf(stderr, "an error occurred in execvp\n");
+    }
+}
+
 int main(void)
 {
+    MakeAClient();
+    struct sigaction act;
+    int i;
+
+    memset(&act, 0, sizeof (act));
+    act.sa_handler = sigchld_hdl;
+
+    if (sigaction(SIGCHLD, &act, 0)) {
+        perror("sigaction");
+        return 1;
+    }
+
+
     int s, s2, t, len;
     struct sockaddr_un local, remote;
     char str[100];
@@ -34,30 +73,26 @@ int main(void)
     }
 
     for (;;) {
-        int done, n;
-        printf("Waiting for a connection...\n");
+        printf("Waiting for a new connection...\n");
         t = sizeof (remote);
         if ((s2 = accept(s, (struct sockaddr *) &remote, &t)) == -1) {
             perror("accept");
             exit(1);
         }
+        socketalive = 1;
 
         printf("Connected.\n");
 
-        done = 0;
+        char str[128];
         do {
-            n = recv(s2, str, 100, 0);
-            if (n <= 0) {
-                if (n < 0) perror("recv");
-                done = 1;
-            }
-
-            if (!done)
-                if (send(s2, str, n, 0) < 0) {
+            fgets(str, sizeof (str) - 1, stdin);
+            if (socketalive) {
+                if (send(s2, str, strlen(str) + 1, 0) < 0) {
                     perror("send");
-                    done = 1;
                 }
-        } while (!done);
+            } else
+                break;
+        } while (1);
 
         close(s2);
     }
