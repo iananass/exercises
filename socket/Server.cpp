@@ -1,4 +1,5 @@
 #include "IPC/IPCServer.h"
+#include <stdio.h>
 #include <iostream>
 
 #define SOCK_PATH "echo_socket"
@@ -12,7 +13,7 @@ int main(void)
         std::cout << "Waiting for a new connection." << std::endl;
         if (!server.Accept()) {
             perror("accept causes");
-            exit(3);
+            return 1;
         }
         int bytes_read;
         char str[128];

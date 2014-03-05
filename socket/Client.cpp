@@ -1,7 +1,6 @@
 #include "IPC/IPCClient.h"
 
 #include <iostream>
-#include <stdio.h>
 #include <string>
 #include <string.h>
 #define SOCK_PATH "echo_socket"
